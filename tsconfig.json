@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    // File Layout
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Environment Settings
+    "module": "CommonJS",                // <-- CommonJS module system for extension-less imports
+    "target": "esnext",                  // Keep target as esnext if you want modern JS features
+    "moduleResolution": "node",          // Node resolution for CommonJS
+
+    // Include Node.js types if using Node APIs
+    "types": ["node"],                  
+
+    // Optional: include latest ECMAScript features for lib support
+    "lib": ["esnext"],
+
+    // Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Stricter type checking
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Style & Safety options - enable as needed
+    //"noImplicitReturns": true,
+    //"noUnusedLocals": true,
+    //"noUnusedParameters": true,
+    //"noFallthroughCasesInSwitch": true,
+
+    // Recommended options
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  }
+}
