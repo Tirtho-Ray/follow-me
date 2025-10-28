@@ -1,10 +1,11 @@
-import { z } from "zod";
+import {z} from "zod"
 
-// Zod enums
+
+
+
 const SocialActionEnum = z.enum(["FOLLOW", "LIKE", "COMMENT"]);
 const MediaPlatformEnum = z.enum(["Facebook", "Instagram", "TikTok", "YouTube", "Linkedin", "X"]);
 
-// Zod schemas
 export const SocialActionSchema = z.object({
   type: SocialActionEnum,
   defaultPrice: z.number().min(0),
@@ -18,6 +19,6 @@ export const SocialPlatformSchema = z.object({
   updatedAt: z.date().optional(),
 });
 
-export const SocialValidation ={
-SocialPlatformSchema
-}
+export const SocialValidation = {
+  SocialPlatformSchema,
+};

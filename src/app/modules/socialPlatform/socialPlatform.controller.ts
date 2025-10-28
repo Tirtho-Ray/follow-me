@@ -5,8 +5,7 @@ import { SocialServices } from "./socialPlatform.services";
 import httpStatus from "http-status";
 
 const createSocial = catchAsync(async (req, res) => {
-  const { data } = req.body;
-  const social = await SocialServices.createSocialInDB(data);
+  const social = await SocialServices.createSocialInDB(req.body);
 
   sendResponse(res, {
     success: true,

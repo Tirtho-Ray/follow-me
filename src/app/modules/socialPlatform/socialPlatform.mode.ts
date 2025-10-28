@@ -18,6 +18,7 @@ const socialPlatformSchema = new Schema<TSocialPlatform>(
           required: true,
         },
         defaultPrice: { type: Number, required: true },
+         _id: false,
       },
     ],
     isActive: { type: Boolean, default: true },
