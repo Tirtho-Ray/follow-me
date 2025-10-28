@@ -1,7 +1,7 @@
 import express, { type Application, type NextFunction, type Request, type Response } from "express"
 import cors from "cors"
-import notFound from "./middlewares/notfound";
-import routes from "./routes";
+import notFound from "./app/middlewares/notfound";
+import routes from "./app/config/routes";
 const app: Application = express();
 
 
