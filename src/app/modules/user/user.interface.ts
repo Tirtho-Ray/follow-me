@@ -1,7 +1,9 @@
+import { Model } from "mongoose";
 import { USER_ROLE, USER_STATUS } from "./user.constant";
 
 
 export interface TUser {
+  _id:string;
   name: string;
   email: string;
   password: string;
@@ -13,9 +15,9 @@ export interface TUser {
   role: keyof typeof USER_ROLE;
   status: keyof typeof USER_STATUS;
 
-  balance?: number;       // wallet balance
-  totalEarned?: number;   // worker earnings
-  totalSpent?: number;    // influencer spending
+  balance?: number;      
+  totalEarnedWorker?: number;   
+  totalSpentInfluencer?: number;   
   paymentMethod?: "bKash" | "Nagad" | "Rocket" | "Bank" | "PayPal";
 
   socialLinks?: {
@@ -26,7 +28,17 @@ export interface TUser {
     linkedin?:string
   };
 
+
+  passwordChangedAt?: Date;
+  
+   // OTP / Reset Flow
+  otp?: string |null;
+  otpExpiresAt?: Date | null;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+
+
   isVerified?: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+  refreshTokens?: string[];
+};
+

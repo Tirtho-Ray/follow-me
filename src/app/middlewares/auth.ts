@@ -1,66 +1,50 @@
-// import { NextFunction, Request, Response } from 'express';
-// import httpStatus from 'http-status';
-// import { JwtPayload } from 'jsonwebtoken';
-// import config from '../config';
-// import AppError from '../errors/AppError';
-// import { catchAsync } from '../utils/catchAsync';
-// import { USER_ROLE } from '../modules/User/user.constant';
-// import { verifyToken } from '../utils/verifyJWT';
-// import { User } from '../modules/User/user.model';
+import { NextFunction, Request, Response } from 'express';
+import httpStatus from 'http-status';
+import config from '../config';
+import AppError from '../errors/appError';
+import { verifyToken } from '../utils/jwtHelper';
+import { User } from '../modules/user/user.model';
+import { USER_ROLE } from '../modules/user/user.constant';
 
-// const auth = (...requiredRoles: (keyof typeof USER_ROLE)[]) => {
-//   return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-//     let token = req.headers.authorization;
+/**
+ * Auth middleware
+ * @param requiredRoles - optional array of roles for role-based access
+ */
+const auth = (...requiredRoles: (keyof typeof USER_ROLE)[]) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // ✅ 1. Cookie থেকে token নাও
+      const token = req.cookies?.accessToken;
+      if (!token) throw new AppError(httpStatus.UNAUTHORIZED, 'Token missing!');
 
-//     // check if token exists
-//     if (!token) {
-//       throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
-//     }
+      // ✅ 2. Token verify
+      let decoded: any;
+      try {
+        decoded = verifyToken(token, config.jwt_access_secret!);
+      } catch (err: any) {
+        throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired token!');
+      }
 
-//     // Remove 'Bearer ' prefix if present
-//     if (token.startsWith('Bearer ')) {
-//       token = token.split(' ')[1];
-//     } else {
-//       throw new AppError(httpStatus.UNAUTHORIZED, 'Token format is invalid!');
-//     }
+      const { _id, role, email } = decoded;
 
-//     const decoded = verifyToken(token, config.jwt_access_secret as string) as JwtPayload & { _id: string, role: string, email: string };
+      // ✅ 3. User DB check
+      const user = await User.findById(_id);
+      if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found!');
+      if (user.status === 'BLOCKED') throw new AppError(httpStatus.FORBIDDEN, 'User is blocked!');
 
-//     const { role, email, iat, _id } = decoded;
+      // ✅ 4. Role check (optional)
+      if (requiredRoles.length && !requiredRoles.includes(role)) {
+        throw new AppError(httpStatus.FORBIDDEN, 'You do not have permission!');
+      }
 
-//     // check if user exists
-//     const user = await User.isUserExistsByEmail(email);
+      // ✅ 5. req.user attach
+      (req as any).user = { id: _id, role, email };
 
-//     if (!user) {
-//       throw new AppError(httpStatus.NOT_FOUND, 'This user is not found!');
-//     }
+      next();
+    } catch (err: any) {
+      next(err);
+    }
+  };
+};
 
-//     if (user.status === 'BLOCKED') {
-//       throw new AppError(httpStatus.FORBIDDEN, 'This user is blocked!');
-//     }
-
-//     if (
-//       user.passwordChangedAt &&
-//       User.isJWTIssuedBeforePasswordChanged(user.passwordChangedAt, iat as number)
-//     ) {
-//       throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized!');
-//     }
-
-//     // check roles
-//     if (requiredRoles.length && !requiredRoles.includes(role as keyof typeof USER_ROLE)) {
-//       throw new AppError(httpStatus.UNAUTHORIZED, 'You are not authorized');
-//     }
-
-//     // attach user to request
-//     req.user = {
-//       id: _id,
-//       role,
-//       email,
-//     };
-
-//     next();
-//   });
-// };
-
-
-// export default auth;
+export default auth;
