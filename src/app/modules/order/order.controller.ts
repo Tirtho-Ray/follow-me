@@ -5,19 +5,10 @@ import sendResponse from "../../utils/sendResponse";
 import { OrderServices } from "./order.services";
 import AppError from "../../errors/appError";
 
-// ✅ Create Order
+/* ---------- Influencer ---------- */
 const createOrder = catchAsync(async (req: Request, res: Response) => {
-  const influencerId = req.user.id; // assuming user is attached to req by auth middleware
-  const data = req.body;
-
-  console.log("Checking influencer:", influencerId);
-  console.log("Order data:", data);
-
-  const orderData = {
-    ...data,
-    influencerId,
-  };
-
+  const influencerId = req.user.id;
+  const orderData = { ...req.body, influencerId };
   const order = await OrderServices.createOrderInDB(orderData);
 
   sendResponse(res, {
@@ -28,24 +19,34 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// ✅ Admin: Get All Orders
+const getMyOrders = catchAsync(async (req: Request, res: Response) => {
+  const influencerId = req.user.id;
+  const result = await OrderServices.getMyOrdersFromDB(influencerId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Your orders fetched successfully",
+    data: result,
+  });
+});
+
+/* ---------- Admin ---------- */
 const getAllOrders = catchAsync(async (req: Request, res: Response) => {
   const result = await OrderServices.getAllOrdersFromDB();
 
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
-    message: "Orders fetched successfully",
+    message: "All orders fetched successfully",
     data: result,
   });
 });
 
-// ✅ Admin: Get Order By ID
 const getOrderById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  if(!id){
-    throw new AppError(httpStatus.NOT_FOUND,"id not found")
-  }
+  if (!id) throw new AppError(httpStatus.BAD_REQUEST, "Order ID is required");
+
   const result = await OrderServices.getOrderByIdFromDB(id);
 
   sendResponse(res, {
@@ -56,36 +57,6 @@ const getOrderById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// ✅ Worker/Viewer: Get All Orders
-const getAllOrdersForViewerController = catchAsync(async (req: Request, res: Response) => {
-  const orders = await OrderServices.getAllOrdersForViewer();
-
-  sendResponse(res, {
-    success: true,
-    statusCode: httpStatus.OK,
-    message: "Orders fetched successfully for viewer",
-    data: orders,
-  });
-});
-
-// ✅ Worker/Viewer: Get Single Order
-const getOrderByIdForViewerController = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  if(!id){
-    throw new AppError(httpStatus.NOT_FOUND,"id not found")
-  }
-  const order = await OrderServices.getOrderByIdForViewer(id);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: httpStatus.OK,
-    message: "Order fetched successfully for viewer",
-    data: order,
-  });
-});
-
-
-// ✅ Update order status
 const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -93,9 +64,9 @@ const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
     throw new AppError(httpStatus.NOT_FOUND,"id not found")
   }
 
-  const allowedStatuses = ["PENDING", "RUNNING", "COMPLETED", "CANCELLED"];
+  const allowedStatuses = ["RUNNING", "COMPLETED", "CANCELLED"];
   if (!allowedStatuses.includes(status))
-    throw new Error(`Invalid status value. Allowed: ${allowedStatuses.join(", ")}`);
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid status value");
 
   const order = await OrderServices.updateOrderStatusInDB(id, status);
 
@@ -107,14 +78,12 @@ const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//  Soft delete (mark as deleted)
 const softDeleteOrder = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
    if(!id){
     throw new AppError(httpStatus.NOT_FOUND,"id not found")
   }
   const order = await OrderServices.softDeleteOrderInDB(id);
-
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
@@ -123,15 +92,12 @@ const softDeleteOrder = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//  Hard delete (remove permanently)
-
 const hardDeleteOrder = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
    if(!id){
     throw new AppError(httpStatus.NOT_FOUND,"id not found")
   }
   const order = await OrderServices.hardDeleteOrderInDB(id);
-
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
@@ -140,14 +106,41 @@ const hardDeleteOrder = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+/* ---------- Worker ---------- */
+const getApprovedOrdersForViewer = catchAsync(async (req: Request, res: Response) => {
+  const orders = await OrderServices.getApprovedOrdersForViewer();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Approved orders fetched successfully",
+    data: orders,
+  });
+});
+
+const getApprovedOrderByIdForViewer = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+   if(!id){
+    throw new AppError(httpStatus.NOT_FOUND,"id not found")
+  }
+  const order = await OrderServices.getApprovedOrderByIdForViewer(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Approved order details fetched successfully",
+    data: order,
+  });
+});
 
 export const OrderController = {
   createOrder,
+  getMyOrders,
   getAllOrders,
   getOrderById,
-  getAllOrdersForViewerController,
-  getOrderByIdForViewerController,
   updateOrderStatus,
   softDeleteOrder,
-  hardDeleteOrder
+  hardDeleteOrder,
+  getApprovedOrdersForViewer,
+  getApprovedOrderByIdForViewer,
 };

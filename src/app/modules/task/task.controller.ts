@@ -99,6 +99,19 @@ const deleteApprovedTasksController = catchAsync(async (req, res) => {
   });
 });
 
+const getRecentEarnings = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 20;
+  const result = await TaskServices.getRecentApprovedEarningsService(limit);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Recent approved earnings fetched successfully",
+    data: result,
+  });
+});
+
+
 export const TaskController = {
   createTask,
   getAllTasks,
@@ -106,4 +119,5 @@ export const TaskController = {
   updateProofStatus,
   getMyTasks,
   deleteApprovedTasksController, 
+  getRecentEarnings
 };

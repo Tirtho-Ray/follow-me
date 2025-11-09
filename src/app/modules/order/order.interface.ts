@@ -2,12 +2,13 @@ import { Types } from "mongoose";
 
 export interface TOrderAction {
   type: "FOLLOW" | "LIKE" | "COMMENT";
-  quantity: number;              // total required quantity
-  assignedCount?: number;        // কতগুলো worker এর কাছে assign হয়েছে
-  pendingCount?: number;         // কতগুলো কাজ pending
-  completedCount?: number;       // কতগুলো কাজ সম্পন্ন
-  unitPrice?: number;            // একক কাজের দাম
-  totalPrice?: number;           // মোট দাম (quantity * unitPrice)
+  quantity: number;              
+  assignedCount?: number;       
+  pendingCount?: number;        
+  completedCount?: number;      
+  unitPrice?: number;           
+  totalPrice?: number; 
+           
 }
 
 export interface TOrder {
@@ -15,8 +16,10 @@ export interface TOrder {
   platformId: Types.ObjectId;  
   targetUrl: string;    
   actions: TOrderAction[]; 
+  transaction:string;
   totalAmount?: number;    
   status: "PENDING" | "RUNNING" | "COMPLETED" | "CANCELLED";
   allTasks?: Types.ObjectId[];
   isDeleted:boolean;
+
 }

@@ -36,6 +36,9 @@ const orderSchema = new Schema<TOrder>(
         _id: false, 
       },
     ],
+    transaction:{
+      type:String
+    },
 
     totalAmount: { type: Number },
 
