@@ -1,7 +1,7 @@
 import { OrderModel } from "./order.model";
-import { SocialPlatformModel } from "../socialPlatform/socialPlatform.mode";
 import { User } from "../user/user.model";
 import { TOrder } from "./order.interface";
+import { SocialPlatformModel } from "../socialPlatform/socialPlatform.mode";
 
 const createOrderInDB = async (payload: TOrder) => {
   const platform = await SocialPlatformModel.findById(payload.platformId);
@@ -12,8 +12,8 @@ const createOrderInDB = async (payload: TOrder) => {
 
   let totalAmount = 0;
 
-  const actionsWithPrice = payload.actions.map(action => {
-    const platformAction = platform.actions.find(a => a.type === action.type);
+  const actionsWithPrice = payload.actions.map((action) => {
+    const platformAction = platform.actions.find((a) => a.type === action.type);
     if (!platformAction)
       throw new Error(`Action type ${action.type} not available on platform`);
 
@@ -28,32 +28,29 @@ const createOrderInDB = async (payload: TOrder) => {
     ...payload,
     actions: actionsWithPrice,
     totalAmount,
+    status: "PENDING", // default
   });
 
   return order;
 };
 
+/* ---------- Helpers ---------- */
 const calculateActionsCounts = (order: any) => {
   const relatedTasks = order.allTasks || [];
-
   return order.actions.map((action: any) => {
-    // Assigned: count of tasks which have this action type
-    const assigned = relatedTasks.filter(
-      (task: any) =>
-        task.proofs?.some((p: any) => p.actionType === action.type)
+    const assigned = relatedTasks.filter((task: any) =>
+      task.proofs?.some((p: any) => p.actionType === action.type)
     ).length;
 
-    // Completed: count of proofs with status APPROVED for this action type
-    const completed = relatedTasks.reduce((count:any, task: any) => {
-      const approvedProofs = task.proofs?.filter(
-        (p: any) => p.actionType === action.type && p.status === "APPROVED"
-      ) || [];
+    const completed = relatedTasks.reduce((count: any, task: any) => {
+      const approvedProofs =
+        task.proofs?.filter(
+          (p: any) => p.actionType === action.type && p.status === "APPROVED"
+        ) || [];
       return count + approvedProofs.length;
     }, 0);
 
-    // Pending = quantity - assigned
     const pending = action.quantity - assigned;
-
     return {
       ...action.toObject(),
       assignedCount: assigned,
@@ -63,21 +60,19 @@ const calculateActionsCounts = (order: any) => {
   });
 };
 
-//admin see
+/* ---------- ADMIN ---------- */
 const getAllOrdersFromDB = async () => {
   const orders = await OrderModel.find()
     .populate("influencerId")
     .populate("platformId")
     .populate("allTasks");
 
-  return orders.map(order => ({
+  return orders.map((order) => ({
     ...order.toObject(),
     actions: calculateActionsCounts(order),
   }));
 };
 
-
-//admin see
 const getOrderByIdFromDB = async (id: string) => {
   const order = await OrderModel.findById(id)
     .populate("influencerId")
@@ -85,60 +80,73 @@ const getOrderByIdFromDB = async (id: string) => {
     .populate("allTasks");
 
   if (!order) throw new Error("Order not found");
-
   return {
     ...order.toObject(),
     actions: calculateActionsCounts(order),
   };
 };
 
+/* ---------- INFLUENCER ---------- */
+const getMyOrdersFromDB = async (influencerId: string) => {
+  const orders = await OrderModel.find({ influencerId, isDeleted: false })
+    .populate("platformId")
+    .populate("allTasks");
 
-
-//worker see
-const getAllOrdersForViewer = async () => {
-  const orders = await OrderModel.find()
-    .populate("platformId", "name")
-    .populate("influencerId", "id");
-
-  return orders.map(order => ({
-    influencerId: order.influencerId._id,
-    platformId: order.platformId._id,
-    targetUrl: order.targetUrl,
-      actions: calculateActionsCounts(order),
+  return orders.map((order) => ({
+    ...order.toObject(),
+    actions: calculateActionsCounts(order),
   }));
 };
-//worker see 
-const getOrderByIdForViewer = async (id: string) => {
-  const order = await OrderModel.findById(id)
+
+/* ---------- WORKER ---------- */
+const getApprovedOrdersForViewer = async () => {
+  const orders = await OrderModel.find({
+    status: { $in: ["RUNNING", "COMPLETED"] },
+    isDeleted: false,
+  })
     .populate("platformId", "name")
-    .populate("influencerId", "id");
+    .populate("influencerId", "_id name");
 
-  if (!order) throw new Error("Order not found");
+  return orders.map((order) => ({
+    ...order.toObject(),
+    actions: calculateActionsCounts(order),
+  }));
+};
 
+const getApprovedOrderByIdForViewer = async (id: string) => {
+  const order = await OrderModel.findOne({
+    _id: id,
+    status: { $in: ["RUNNING", "COMPLETED"] },
+    isDeleted: false,
+  })
+    .populate("platformId", "name")
+    .populate("influencerId", "_id name");
+
+  if (!order) throw new Error("Approved order not found");
   return {
-    influencerId: order.influencerId._id,
-    platformId: order.platformId._id,
-    targetUrl: order.targetUrl,
+    ...order.toObject(),
     actions: calculateActionsCounts(order),
   };
 };
 
-//update order like approve 
-const updateOrderStatusInDB = async (id: string, status: "PENDING" | "RUNNING" | "COMPLETED" | "CANCELLED") => {
+/* ---------- ADMIN STATUS UPDATE ---------- */
+const updateOrderStatusInDB = async (
+  id: string,
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "CANCELLED"
+) => {
   const order = await OrderModel.findByIdAndUpdate(
     id,
     { status },
     { new: true }
   )
     .populate("influencerId")
-    .populate("platformId")
-    .populate("allTasks");
+    .populate("platformId");
 
   if (!order) throw new Error("Order not found");
   return order;
 };
 
-// ✅ Soft Delete Order (mark as deleted)
+/* ---------- DELETE ---------- */
 const softDeleteOrderInDB = async (id: string) => {
   const order = await OrderModel.findByIdAndUpdate(
     id,
@@ -149,21 +157,20 @@ const softDeleteOrderInDB = async (id: string) => {
   return order;
 };
 
-// ✅ Hard Delete Order (permanent removal)
 const hardDeleteOrderInDB = async (id: string) => {
   const order = await OrderModel.findByIdAndDelete(id);
   if (!order) throw new Error("Order not found");
   return order;
 };
 
-
 export const OrderServices = {
   createOrderInDB,
   getAllOrdersFromDB,
   getOrderByIdFromDB,
-  getAllOrdersForViewer,
-  getOrderByIdForViewer,
+  getMyOrdersFromDB,
+  getApprovedOrdersForViewer,
+  getApprovedOrderByIdForViewer,
   updateOrderStatusInDB,
   softDeleteOrderInDB,
-  hardDeleteOrderInDB
+  hardDeleteOrderInDB,
 };

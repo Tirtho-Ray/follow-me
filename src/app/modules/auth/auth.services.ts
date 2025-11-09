@@ -5,38 +5,63 @@ import { TLoginUser, TRegisterUser } from './auth.interface';
 import config from '../../config';
 import { USER_STATUS } from '../user/user.constant';
 import AppError from '../../errors/appError';
-import { comparePassword, hashPassword } from '../../utils/bcryptHelper';
+import { comparePassword } from '../../utils/bcryptHelper';
 import { createToken, verifyToken } from '../../utils/jwtHelper';
 
+
 const registerUser = async (payload: TRegisterUser) => {
+  // Step 1: Check if email already exists
   const existingUser = await User.findOne({ email: payload.email });
-  if (existingUser) throw new AppError(httpStatus.CONFLICT, 'User already exists!');
+  if (existingUser) {
+    throw new AppError(httpStatus.CONFLICT, 'User with this email already exists!');
+  }
 
-  // const hashedPassword = await hashPassword(payload.password);
+  //  Step 2: Determine status based on role
+  let userStatus: keyof typeof USER_STATUS = USER_STATUS.PENDING;
 
-  const newUser = await User.create({ 
-    ...payload, 
-    // password: hashedPassword,
-    status: USER_STATUS.ACTIVE,
-    refreshTokens: [] // Multi-device support
+  switch (payload.role) {
+    case 'INFLUENCER':
+      userStatus = USER_STATUS.ACTIVE;
+      break;
+
+    case 'WORKER':
+      userStatus = USER_STATUS.PENDING;
+
+      // Worker credentials validation
+      if (!payload.workerCredentials || Object.keys(payload.workerCredentials).length === 0) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Worker credentials are required for registration.');
+      }
+      break;
+
+    default:
+      throw new AppError(httpStatus.BAD_REQUEST, 'Invalid user role provided!');
+  }
+
+  //  Step 3: Create user
+  const newUser = await User.create({
+    ...payload,
+    status: userStatus,
+    refreshTokens: [],
   });
 
+  //  Step 4: Prepare JWT payload
   const jwtPayload = {
     _id: newUser._id.toString(),
     name: newUser.name,
     email: newUser.email,
     role: newUser.role,
-    status: newUser.status
+    status: newUser.status,
   };
 
+  //Step 5: Generate Tokens
   const accessToken = createToken(jwtPayload, config.jwt_access_secret!, '15m');
   const refreshToken = createToken(jwtPayload, config.jwt_refresh_secret!, '7d');
 
-  // Ensure refreshTokens is array
-  newUser.refreshTokens = newUser.refreshTokens || [];
-  newUser.refreshTokens.push(refreshToken);
-  await newUser.save();
+  // Step 6: Save refresh token for multi-device support
+  newUser.refreshTokens = [refreshToken];
+  await newUser.save({ validateBeforeSave: false });
 
+  // Step 7: Return response
   return {
     accessToken,
     refreshToken,
@@ -45,10 +70,12 @@ const registerUser = async (payload: TRegisterUser) => {
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
-      status: newUser.status
-    }
+      status: newUser.status,
+      workerCredentials: newUser.workerCredentials || null,
+    },
   };
 };
+
 
 const loginUser = async (payload: TLoginUser) => {
   const user = await User.findOne({ email: payload.email }).select('+password +refreshTokens');

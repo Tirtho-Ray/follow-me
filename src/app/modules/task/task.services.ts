@@ -206,11 +206,45 @@ const deleteApprovedTasksService = async () => {
   };
 };
 
+const getRecentApprovedEarningsService = async (limit = 20) => {
+  const tasks = await TaskModel.find({ "proofs.status": "APPROVED" })
+    .populate("workerId", "name")
+    .populate("orderId", "targetUrl")
+    .sort({ "proofs.verifiedAt": -1 })
+    .limit(limit);
+
+
+  const earningsFeed:any = [];
+
+  for (const task of tasks) {
+    const workerName = (task.workerId as any)?.name || "Unknown Worker";
+    const orderUrl = (task.orderId as any)?.targetUrl || "N/A";
+
+    task.proofs.forEach((p: any) => {
+      if (p.status === "APPROVED") {
+        earningsFeed.push({
+          worker: workerName,
+          orderUrl,
+          actionType: p.actionType,
+          earnedAmount: `${(p.quantity * 0.1).toFixed(2)}$`, // ধরো প্রতি অ্যাকশনে 0.1$
+          verifiedAt: p.verifiedAt,
+        });
+      }
+    });
+  }
+
+  earningsFeed.sort((a:any, b:any):any => b.verifiedAt - a.verifiedAt);
+
+  return earningsFeed.slice(0, limit);
+};
+
+
 export const TaskServices = {
   createTaskInDB,
   getAllTasksFromDB,
   getSingleTaskFromDB,
   updateProofStatusInDB,
   getWorkerTasksFromDB,
-  deleteApprovedTasksService, //  added
+  deleteApprovedTasksService, 
+  getRecentApprovedEarningsService
 };
